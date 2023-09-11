@@ -1,26 +1,29 @@
 @echo off
 
+REM Definir Nombre Backups
+set "Backups=Harina"
 
-REM Definir las variables globales
+REM Definir variables globales para los correos electrónicos
+set "EmailFrom=bonninpedro1@gmail.com"
+set "EmailTo=bonninpedro1@gmail.com"
 
-REM Carpeta Origen
-set "SourceFolder=E:\descargas\Video\Nueva carpeta\origen"
+REM Definir variables globales para las rutas de carpetas y archivos
+set "FolderOrigen=G:\a\"
+set "FolderDestino=G:\b\"
 
-REM Carpeta Destino
-set "Folder=E:\descargas\Video\Nueva carpeta\destino"
+REM Ruta donde guardar la captura de pantalla
+set "DirCaptura=C:\Users\bonni\Desktop\back ups email\captura\"
 
-REM Destino de la captura
-set "ScreenshotPath=C:\Users\bonni\Desktop\back ups email\captura\captura_pantalla1.png"
+REM Ruta del capturador nircmd
+set "nircmd=nircmd\nircmd.exe"
 
-REM Exe captura de pantalla nircmd
-set "Nircmd=C:\Users\bonni\Desktop\back ups email\nircmd\nircmd.exe"
 
 
 
 
 
 REM Ejecutar el código PowerShell y guardar los resultados en variables
-for /f "usebackq delims=" %%A in (`powershell -Command "$FolderInfo = Get-ChildItem -Path '%Folder%' -Recurse | Measure-Object -Property Length -Sum; $Size = $FolderInfo.Sum / 1MB; $FilesCount = $FolderInfo.Count; Write-Output $Size, $FilesCount"`) do (
+for /f "usebackq delims=" %%A in (`powershell -Command "$FolderInfo = Get-ChildItem -Path '%FolderDestino%' -Recurse | Measure-Object -Property Length -Sum; $SizeAfter = [Math]::Round($FolderInfo.Sum / 1GB, 4).ToString(); $FilesCountAfter = $FolderInfo.Count; Write-Output $SizeAfter, $FilesCountAfter"`) do (
     if not defined Size (
         set "Size=%%A"
     ) else (
@@ -28,37 +31,76 @@ for /f "usebackq delims=" %%A in (`powershell -Command "$FolderInfo = Get-ChildI
     )
 )
 
-REM Imprimir los resultados antes de la copia
-echo Peso de la carpeta antes de la copia: %Size% MB
-echo Cantidad de archivos antes de la copia: %FilesCount%
 
-REM Realizar la copia con Robocopy
-ROBOCOPY "%SourceFolder%" "%Folder%" /E /V /TEE
 
-REM Obtener los datos de la carpeta después de la copia de seguridad
-for /f "usebackq delims=" %%A in (`powershell -Command "$FolderInfo = Get-ChildItem -Path '%Folder%' -Recurse | Measure-Object -Property Length -Sum; $SizeAfter = $FolderInfo.Sum / 1MB; $FilesCountAfter = $FolderInfo.Count; Write-Output $SizeAfter, $FilesCountAfter"`) do (
+REM Obtener la fecha y hora actual
+for /f "tokens=2 delims==" %%G in ('wmic os get localdatetime /value') do set "datetime=%%G"
+
+REM Formatear la fecha y hora en el formato dd/mm/aa
+set "timestamp=%datetime:~6,2%-%datetime:~4,2%-%datetime:~2,2% hs%time:~0,2%-%time:~3,2%"
+
+
+
+REM Realizar la copia con Robocopy y crea registro
+set "Reg=%Backups%_registro _ %timestamp%.txt"
+ROBOCOPY %FolderOrigen% %FolderDestino% /E /V /TEE /LOG:"%Reg%" 
+
+REM Ejecutar el código PowerShell y guardar los resultados en variables
+for /f "usebackq delims=" %%A in (`powershell -Command "$FolderInfo = Get-ChildItem -Path '%FolderDestino%' -Recurse | Measure-Object -Property Length -Sum; $SizeAfter = [Math]::Round($FolderInfo.Sum / 1GB, 4).ToString(); $FilesCountAfter = $FolderInfo.Count; Write-Output $SizeAfter, $FilesCountAfter"`) do (
     if not defined SizeAfter (
-    	set "SizeAfter=%%A"
+        set "SizeAfter=%%A"
     ) else (
-    	set "FilesCountAfter=%%A"
+        set "FilesCountAfter=%%A"
     )
 )
 
+
+REM Imprimir los resultados antes de la copia
+echo Peso de la carpeta antes de la copia: %Size% GB
+echo Cantidad de archivos antes de la copia: %FilesCount%
+
+echo.
+
 REM Imprimir los resultados después de la copia
-echo Peso de la carpeta despues de la copia: %SizeAfter% MB
+echo Peso de la carpeta despues de la copia: %SizeAfter% GB
 echo Cantidad de archivos despues de la copia: %FilesCountAfter%
 
-REM Ejecuta Screenhot
-"%Nircmd%" savescreenshot "%ScreenshotPath%"
+
+REM Direccion + nombre de captura
+set "ScreenshotPath=%DirCaptura%%Backups% %timestamp%.png"
+set "ScreenshotCam=%DirCaptura%Camaras %Backups% %timestamp%.png"
+
+
+REM Maximizar la ventana del archivo .bat actual
+nircmd win max class "ConsoleWindowClass" title "%~f0"
+
+
+REM Ejecutar el comando de captura de pantalla con nircmd
+"%nircmd%" savescreenshot "%ScreenshotPath%"
+
+REM Minimizar la ventana del archivo .bat actual
+nircmd win min class "ConsoleWindowClass" title "%~f0"
+
+REM Capturar la pantalla nuevamente después de minimizar CMD
+"%nircmd%" savescreenshot "%ScreenshotCam%"
+
+
 
 REM Verificar si la captura de pantalla se realizó exitosamente
 if exist "%ScreenshotPath%" (
     echo Captura de pantalla guardada exitosamente en %ScreenshotPath%
-    REM Enviar correo electrónico con la captura de pantalla y los datos adjuntos
-    PowerShell.exe -ExecutionPolicy Bypass -Command "$EmailFrom = 'bonninpedro1@gmail.com'; $EmailTo = 'bonninpedro1@gmail.com'; $Subject = 'Informe Backups Pollos'; $Body = 'Adjunto los datos del Backups'; $Body += \"`r`nPeso de la carpeta antes de la copia: %Size% MB\"; $Body += \"`r`nCantidad de archivos antes de la copia: %FilesCount%\"; $Body += \"`r`n\"; $Body += \"`r`nPeso de la carpeta despues de la copia: %SizeAfter% MB\"; $Body += \"`r`nCantidad de archivos despues de la copia: %FilesCountAfter%\"; $Body += \"`r`nAdjunto la captura de pantalla del Backups\"; $SMTPServer = 'smtp.gmail.com'; $SMTPClient = New-Object Net.Mail.SmtpClient($SMTPServer, 587); $SMTPClient.EnableSsl = $true; $SMTPClient.Credentials = New-Object System.Net.NetworkCredential('bonninpedro1@gmail.com', ''); $Email = New-Object System.Net.Mail.MailMessage($EmailFrom, $EmailTo, $Subject, $Body); $AttachmentPath = '%ScreenshotPath%'; $Attachment = New-Object System.Net.Mail.Attachment($AttachmentPath); $Email.Attachments.Add($Attachment); $SMTPClient.Send($Email);"
+if exist "%ScreenshotCam%" (
+    echo Segunda captura de pantalla guardada exitosamente en %ScreenshotCam%
 
-    REM Eliminar la imagen de captura
+     REM Enviar correo electrónico con ambas capturas de pantalla y los datos adjuntos
+    PowerShell.exe -ExecutionPolicy Bypass -Command "$EmailFrom = '%EmailFrom%'; $EmailTo = '%EmailTo%'; $Subject = 'Informe Backups %Backups%'; $Body = 'Adjunto los datos del Backups'; $Body += \"`r`nPeso de la carpeta antes de la copia: %Size% GB\"; $Body += \"`r`nCantidad de archivos antes de la copia: %FilesCount%\";$Body += \"`r`n\"; $Body += \"`r`nPeso de la carpeta despues de la copia: %SizeAfter% GB\"; $Body += \"`r`nCantidad de archivos despues de la copia: %FilesCountAfter%\";$Body += \"`r`n\"; $Body += \"`r`nAdjunto las capturas de pantalla del Backups\"; $SMTPServer = 'smtp.gmail.com'; $SMTPClient = New-Object Net.Mail.SmtpClient($SMTPServer, 587); $SMTPClient.EnableSsl = $true; $SMTPClient.Credentials = New-Object System.Net.NetworkCredential('%EmailFrom%', ''); $Email = New-Object System.Net.Mail.MailMessage($EmailFrom, $EmailTo, $Subject, $Body); $AttachmentPath1 = '%ScreenshotPath%'; $Attachment1 = New-Object System.Net.Mail.Attachment($AttachmentPath1); $Email.Attachments.Add($Attachment1); $AttachmentPath2 = '%ScreenshotCam%'; $Attachment2 = New-Object System.Net.Mail.Attachment($AttachmentPath2); $Email.Attachments.Add($Attachment2); $AttachmentPath3 = '%Reg%'; $Attachment3 = New-Object System.Net.Mail.Attachment($AttachmentPath3); $Email.Attachments.Add($Attachment3); $SMTPClient.Send($Email);"
+
+
+    REM Eliminar la imagenS de captura
     del "%ScreenshotPath%"
+    del "%ScreenshotCam%"
+    del "%Reg%"
 ) else (
     echo Error al realizar la captura de pantalla
+)
 )
