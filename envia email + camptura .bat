@@ -8,11 +8,11 @@ set "EmailFrom=bonninpedro1@gmail.com"
 set "EmailTo=bonninpedro1@gmail.com"
 
 REM Definir variables globales para las rutas de carpetas y archivos
-set "FolderOrigen=G:\a\"
-set "FolderDestino=G:\b\"
+set "FolderOrigen=G:\a"
+set "FolderDestino=G:\b"
 
 REM Ruta donde guardar la captura de pantalla
-set "DirCaptura=C:\Users\bonni\Desktop\back ups email\captura\"
+set "DirCaptura="
 
 REM Ruta del capturador nircmd
 set "nircmd=nircmd\nircmd.exe"
@@ -71,6 +71,31 @@ set "ScreenshotPath=%DirCaptura%%Backups% %timestamp%.png"
 set "ScreenshotCam=%DirCaptura%Camaras %Backups% %timestamp%.png"
 
 
+REM Disco Comprobasion de espacio
+REM Verificar si la carpeta es una ruta completa o solo un nombre de carpeta
+if "%FolderDestino:~2,1%"=="" (
+    REM Si es solo un nombre de carpeta, obtener la ruta del disco actual
+    set "FolderDestino=%~dp0%FolderDestino%"
+)
+
+set "Disco=%FolderDestino:~0,2%"
+for %%A in ("%FolderDestino%") do set "nombre_carpeta=%%~nxA"
+
+echo La carpeta "%nombre_carpeta%" se encuentra en el disco %Disco%
+
+
+for /f "usebackq delims=" %%A in (`powershell -Command "$disk = Get-WmiObject -Class Win32_LogicalDisk | Where-Object { $_.DeviceID -eq '%Disco%' }; $total = $disk.Size; $free = $disk.FreeSpace; $totalGB = $total / 1GB; $freeGB = $free / 1GB; $totalMB = $total / 1MB; $freeMB = $free / 1MB; $totalKB = $total / 1KB; $freeKB = $free / 1KB; $EspacioTotal = ('{0:N2}' -f $totalGB) + ' GB (' + ('{0:N2}' -f $totalMB) + ' MB, ' + ('{0:N2}' -f $totalKB) + ' KB)'; $EspacioLibre = ('{0:N2}' -f $freeGB) + ' GB (' + ('{0:N2}' -f $freeMB) + ' MB, ' + ('{0:N2}' -f $freeKB) + ' KB)'; Write-Host 'Espacio total:' $EspacioTotal; Write-Host 'Espacio libre:' $EspacioLibre; Write-Output $EspacioTotal, $EspacioLibre"`) do (
+  if not defined EspacioTotalVariable (
+    set "EspacioTotalVariable=%%A"
+  ) else (
+    set "EspacioLibreVariable=%%A"
+  )
+)
+
+echo Espacio total: %EspacioTotalVariable%
+echo Espacio libre: %EspacioLibreVariable%
+REM Fin Disco Comprobasion de espacio
+
 REM Maximizar la ventana del archivo .bat actual
 nircmd win max class "ConsoleWindowClass" title "%~f0"
 
@@ -92,8 +117,8 @@ if exist "%ScreenshotPath%" (
 if exist "%ScreenshotCam%" (
     echo Segunda captura de pantalla guardada exitosamente en %ScreenshotCam%
 
-     REM Enviar correo electrónico con ambas capturas de pantalla y los datos adjuntos
-    PowerShell.exe -ExecutionPolicy Bypass -Command "$EmailFrom = '%EmailFrom%'; $EmailTo = '%EmailTo%'; $Subject = 'Informe Backups %Backups%'; $Body = 'Adjunto los datos del Backups'; $Body += \"`r`nPeso de la carpeta antes de la copia: %Size% GB\"; $Body += \"`r`nCantidad de archivos antes de la copia: %FilesCount%\";$Body += \"`r`n\"; $Body += \"`r`nPeso de la carpeta despues de la copia: %SizeAfter% GB\"; $Body += \"`r`nCantidad de archivos despues de la copia: %FilesCountAfter%\";$Body += \"`r`n\"; $Body += \"`r`nAdjunto las capturas de pantalla del Backups\"; $SMTPServer = 'smtp.gmail.com'; $SMTPClient = New-Object Net.Mail.SmtpClient($SMTPServer, 587); $SMTPClient.EnableSsl = $true; $SMTPClient.Credentials = New-Object System.Net.NetworkCredential('%EmailFrom%', ''); $Email = New-Object System.Net.Mail.MailMessage($EmailFrom, $EmailTo, $Subject, $Body); $AttachmentPath1 = '%ScreenshotPath%'; $Attachment1 = New-Object System.Net.Mail.Attachment($AttachmentPath1); $Email.Attachments.Add($Attachment1); $AttachmentPath2 = '%ScreenshotCam%'; $Attachment2 = New-Object System.Net.Mail.Attachment($AttachmentPath2); $Email.Attachments.Add($Attachment2); $AttachmentPath3 = '%Reg%'; $Attachment3 = New-Object System.Net.Mail.Attachment($AttachmentPath3); $Email.Attachments.Add($Attachment3); $SMTPClient.Send($Email);"
+     REM Enviar correo electrónico con ambas capturas de pantalla, los datos adjuntos y la información de espacio en disco
+        PowerShell.exe -ExecutionPolicy Bypass -Command "$EmailFrom = '%EmailFrom%'; $EmailTo = '%EmailTo%'; $Subject = 'Informe Backups %Backups%'; $Body = 'Adjunto los datos del Backups'; $Body += \"`r`nPeso de la carpeta antes de la copia: %Size% GB\"; $Body += \"`r`nCantidad de archivos antes de la copia: %FilesCount%\";$Body += \"`r`n\"; $Body += \"`r`nPeso de la carpeta despues de la copia: %SizeAfter% GB\"; $Body += \"`r`nCantidad de archivos despues de la copia: %FilesCountAfter%\";$Body += \"`r`n\"; $Body += \"`r`n\"; $Body += \"`r`nAdjunto las capturas de pantalla del Backups\"; $SMTPServer = 'smtp.gmail.com'; $SMTPClient = New-Object Net.Mail.SmtpClient($SMTPServer, 587); $SMTPClient.EnableSsl = $true; $SMTPClient.Credentials = New-Object System.Net.NetworkCredential('%EmailFrom%', 'gykcieifrgxvmagk'); $Email = New-Object System.Net.Mail.MailMessage($EmailFrom, $EmailTo, $Subject, $Body); $AttachmentPath1 = '%ScreenshotPath%'; $Attachment1 = New-Object System.Net.Mail.Attachment($AttachmentPath1); $Email.Attachments.Add($Attachment1); $AttachmentPath2 = '%ScreenshotCam%'; $Attachment2 = New-Object System.Net.Mail.Attachment($AttachmentPath2); $Email.Attachments.Add($Attachment2); $AttachmentPath3 = '%Reg%'; $Attachment3 = New-Object System.Net.Mail.Attachment($AttachmentPath3); $Email.Attachments.Add($Attachment3); $SMTPClient.Send($Email);"
 
 
     REM Eliminar la imagenS de captura
@@ -104,3 +129,4 @@ if exist "%ScreenshotCam%" (
     echo Error al realizar la captura de pantalla
 )
 )
+
