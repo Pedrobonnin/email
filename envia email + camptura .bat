@@ -70,6 +70,7 @@ REM Direccion + nombre de captura
 set "ScreenshotPath=%DirCaptura%%Backups% %timestamp%.png"
 set "ScreenshotCam=%DirCaptura%Camaras %Backups% %timestamp%.png"
 
+echo.
 
 REM Disco Comprobasion de espacio
 REM Verificar si la carpeta es una ruta completa o solo un nombre de carpeta
@@ -83,8 +84,7 @@ for %%A in ("%FolderDestino%") do set "nombre_carpeta=%%~nxA"
 
 echo La carpeta "%nombre_carpeta%" se encuentra en el disco %Disco%
 
-
-for /f "usebackq delims=" %%A in (`powershell -Command "$disk = Get-WmiObject -Class Win32_LogicalDisk | Where-Object { $_.DeviceID -eq '%Disco%' }; $total = $disk.Size; $free = $disk.FreeSpace; $totalGB = $total / 1GB; $freeGB = $free / 1GB; $totalMB = $total / 1MB; $freeMB = $free / 1MB; $totalKB = $total / 1KB; $freeKB = $free / 1KB; $EspacioTotal = ('{0:N2}' -f $totalGB) + ' GB (' + ('{0:N2}' -f $totalMB) + ' MB, ' + ('{0:N2}' -f $totalKB) + ' KB)'; $EspacioLibre = ('{0:N2}' -f $freeGB) + ' GB (' + ('{0:N2}' -f $freeMB) + ' MB, ' + ('{0:N2}' -f $freeKB) + ' KB)'; Write-Host 'Espacio total:' $EspacioTotal; Write-Host 'Espacio libre:' $EspacioLibre; Write-Output $EspacioTotal, $EspacioLibre"`) do (
+for /f "usebackq delims=" %%A in (`powershell -Command "$disk = Get-WmiObject -Class Win32_LogicalDisk | Where-Object { $_.DeviceID -eq '%Disco%' }; $total = $disk.Size; $free = $disk.FreeSpace; $totalGB = $total / 1GB; $freeGB = $free / 1GB; $totalMB = $total / 1MB; $freeMB = $free / 1MB; $totalKB = $total / 1KB; $freeKB = $free / 1KB; $EspacioTotal = ('{0:N2}' -f $totalGB) + ' GB (' + ('{0:N2}' -f $totalMB) + ' MB, ' + ('{0:N2}' -f $totalKB) + ' KB)'; $EspacioLibre = ('{0:N2}' -f $freeGB) + ' GB (' + ('{0:N2}' -f $freeMB) + ' MB, ' + ('{0:N2}' -f $freeKB) + ' KB)'; Write-Host $EspacioTotal; Write-Host $EspacioLibre; Write-Output $EspacioTotal, $EspacioLibre"`) do (
   if not defined EspacioTotalVariable (
     set "EspacioTotalVariable=%%A"
   ) else (
@@ -92,8 +92,20 @@ for /f "usebackq delims=" %%A in (`powershell -Command "$disk = Get-WmiObject -C
   )
 )
 
-echo Espacio total: %EspacioTotalVariable%
-echo Espacio libre: %EspacioLibreVariable%
+echo Espacio total en GB: %EspacioTotalVariable%
+echo Espacio libre en GB: %EspacioLibreVariable%
+
+
+REM Filtro para pasar los datos en GB por Email
+rem Filtrar el resultado en GB antes del paréntesis para EspacioTotalVariable
+for /f "tokens=1 delims=(" %%B in ("%EspacioTotalVariable%") do (
+  set "EspacioTotal=%%B"
+)
+
+rem Filtrar el resultado en GB antes del paréntesis para EspacioLibreVariable
+for /f "tokens=1 delims=(" %%C in ("%EspacioLibreVariable%") do (
+  set "EspacioLibre=%%C"
+)
 REM Fin Disco Comprobasion de espacio
 
 REM Maximizar la ventana del archivo .bat actual
@@ -118,7 +130,7 @@ if exist "%ScreenshotCam%" (
     echo Segunda captura de pantalla guardada exitosamente en %ScreenshotCam%
 
      REM Enviar correo electrónico con ambas capturas de pantalla, los datos adjuntos y la información de espacio en disco
-        PowerShell.exe -ExecutionPolicy Bypass -Command "$EmailFrom = '%EmailFrom%'; $EmailTo = '%EmailTo%'; $Subject = 'Informe Backups %Backups%'; $Body = 'Adjunto los datos del Backups'; $Body += \"`r`nPeso de la carpeta antes de la copia: %Size% GB\"; $Body += \"`r`nCantidad de archivos antes de la copia: %FilesCount%\";$Body += \"`r`n\"; $Body += \"`r`nPeso de la carpeta despues de la copia: %SizeAfter% GB\"; $Body += \"`r`nCantidad de archivos despues de la copia: %FilesCountAfter%\";$Body += \"`r`n\"; $Body += \"`r`n\"; $Body += \"`r`nAdjunto las capturas de pantalla del Backups\"; $SMTPServer = 'smtp.gmail.com'; $SMTPClient = New-Object Net.Mail.SmtpClient($SMTPServer, 587); $SMTPClient.EnableSsl = $true; $SMTPClient.Credentials = New-Object System.Net.NetworkCredential('%EmailFrom%', 'gykcieifrgxvmagk'); $Email = New-Object System.Net.Mail.MailMessage($EmailFrom, $EmailTo, $Subject, $Body); $AttachmentPath1 = '%ScreenshotPath%'; $Attachment1 = New-Object System.Net.Mail.Attachment($AttachmentPath1); $Email.Attachments.Add($Attachment1); $AttachmentPath2 = '%ScreenshotCam%'; $Attachment2 = New-Object System.Net.Mail.Attachment($AttachmentPath2); $Email.Attachments.Add($Attachment2); $AttachmentPath3 = '%Reg%'; $Attachment3 = New-Object System.Net.Mail.Attachment($AttachmentPath3); $Email.Attachments.Add($Attachment3); $SMTPClient.Send($Email);"
+        PowerShell.exe -ExecutionPolicy Bypass -Command "$EmailFrom = '%EmailFrom%'; $EmailTo = '%EmailTo%'; $Subject = 'Informe Backups %Backups%'; $Body = 'Adjunto los datos del Backups'; $Body += \"`r`nPeso de la carpeta antes de la copia: %Size% GB\"; $Body += \"`r`nCantidad de archivos antes de la copia: %FilesCount%\";$Body += \"`r`n\"; $Body += \"`r`nPeso de la carpeta despues de la copia: %SizeAfter% GB\"; $Body += \"`r`nCantidad de archivos despues de la copia: %FilesCountAfter%\";$Body += \"`r`n\";$Body += \"`r`nCapasidad del Disco: %EspacioTotal%\";$Body += \"`r`nEspacio Libre del Disco: %EspacioLibre%\"; $Body += \"`r`n\"; $Body += \"`r`nAdjunto las capturas de pantalla del Backups\"; $SMTPServer = 'smtp.gmail.com'; $SMTPClient = New-Object Net.Mail.SmtpClient($SMTPServer, 587); $SMTPClient.EnableSsl = $true; $SMTPClient.Credentials = New-Object System.Net.NetworkCredential('%EmailFrom%', ''); $Email = New-Object System.Net.Mail.MailMessage($EmailFrom, $EmailTo, $Subject, $Body); $AttachmentPath1 = '%ScreenshotPath%'; $Attachment1 = New-Object System.Net.Mail.Attachment($AttachmentPath1); $Email.Attachments.Add($Attachment1); $AttachmentPath2 = '%ScreenshotCam%'; $Attachment2 = New-Object System.Net.Mail.Attachment($AttachmentPath2); $Email.Attachments.Add($Attachment2); $AttachmentPath3 = '%Reg%'; $Attachment3 = New-Object System.Net.Mail.Attachment($AttachmentPath3); $Email.Attachments.Add($Attachment3); $SMTPClient.Send($Email);"
 
 
     REM Eliminar la imagenS de captura
